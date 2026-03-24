@@ -33,7 +33,6 @@ export default function ClientLogin() {
       if (error || !data) {
         setErro('Celular ou palavra-passe incorretos! Tente novamente.');
       } else {
-        // Salva os dados do cliente para não ter que digitar toda hora
         localStorage.setItem('clienteNome', data.nome);
         localStorage.setItem('clienteCelular', data.celular);
         localStorage.setItem('clienteEndereco', data.endereco);
@@ -49,16 +48,15 @@ export default function ClientLogin() {
   return (
     <div 
       className="min-h-screen flex items-center justify-center px-4 bg-cover bg-center bg-no-repeat relative"
-      // 👇 A bandeira rústica que você mandou aplicada aqui!
+      // 👇 Usei o link da imagem da bandeira que você me enviou aqui!
       style={{ backgroundImage: "url('https://i.imgur.com/8Q9Z5bQ.jpeg')" }}
     >
-      {/* Película escura para dar destaque à caixinha branca e não ofuscar a visão */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"></div>
+      {/* Película escura (Overlay) para o formulário aparecer bem sobre a bandeira */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"></div>
       
       <div className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-md w-full relative z-10 border border-white/20">
         
         <div className="flex justify-center mb-4 mt-2">
-          {/* O ícone foi corrigido aqui */}
           <div className="bg-[#E53E3E] p-4 rounded-full shadow-lg flex items-center justify-center w-16 h-16">
             <Utensils size={32} className="text-white" />
           </div>
@@ -89,7 +87,7 @@ export default function ClientLogin() {
                 value={celular}
                 onChange={(e) => setCelular(e.target.value)}
                 className="w-full bg-gray-50 border border-gray-200 text-gray-800 pl-10 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E53E3E] transition-all text-sm" 
-                placeholder="Insira o seu número" 
+                placeholder="Ex: 955915392" 
               />
             </div>
           </div>

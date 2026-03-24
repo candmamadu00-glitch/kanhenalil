@@ -1,28 +1,23 @@
 import { useState } from 'react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, ArrowLeft, Phone, User, MapPin, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabase'; // Importando a conexão com o banco!
+import { supabase } from '../supabase'; 
 
 export default function Register() {
   const navigate = useNavigate();
 
-  // "Gavetas" temporárias para guardar o que o cliente digita
   const [nome, setNome] = useState('');
   const [celular, setCelular] = useState('');
   const [endereco, setEndereco] = useState('');
   const [senha, setSenha] = useState('');
-  
-  // Para mostrar avisos de erro ou carregamento na tela
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Função que roda quando o cliente clica em Cadastrar
   const fazerCadastro = async (e) => {
-    e.preventDefault(); // Evita que a página recarregue
+    e.preventDefault();
     setErro('');
     setLoading(true);
 
-    // Verifica se o cliente preencheu tudo
     if (!nome || !celular || !endereco || !senha) {
       setErro('Por favor, preencha todos os campos!');
       setLoading(false);
@@ -30,121 +25,137 @@ export default function Register() {
     }
 
     try {
-      // Aqui é a mágica: Enviando para a tabela 'clientes' no Supabase
       const { error } = await supabase
         .from('clientes')
-        .insert([
-          { nome: nome, celular: celular, endereco: endereco, senha: senha }
-        ]);
+        .insert([{ nome, celular, endereco, senha }]);
 
       if (error) {
-        // Se o celular já existir no banco, ele avisa
         if (error.code === '23505') { 
           setErro('Este número de celular já está cadastrado.');
         } else {
-          setErro('Erro ao criar conta. Tente novamente.');
+          setErro('Erro ao criar conta. Verifique se o banco de dados está liberado.');
         }
       } else {
-        // Sucesso! Salva os dados no navegador para não precisar logar de novo agora
-        localStorage.setItem('clienteAtivo', celular);
-        localStorage.setItem('nomeCliente', nome);
+        localStorage.setItem('clienteNome', nome);
+        localStorage.setItem('clienteCelular', celular);
+        localStorage.setItem('clienteEndereco', endereco);
         
         alert('Cadastro realizado com sucesso! Bem-vindo ao Kanhen Alil.');
-        navigate('/cardapio'); // Manda o cliente direto para ver os pratos
+        navigate('/cardapio'); 
       }
     } catch (err) {
-      setErro('Erro de conexão com o servidor.');
+      setErro('Erro de conexão. Verifique sua internet.');
     } finally {
-      setLoading(false); // Desliga o botão de carregamento
+      setLoading(false);
     }
   };
 
   return (
     <div 
       className="min-h-screen flex items-center justify-center px-4 bg-cover bg-center bg-no-repeat relative"
+      // Se quiser a bandeira rústica, troque para: https://i.imgur.com/8Q9Z5bQ.jpeg
       style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/c/ce/Flag_of_Guinea-Bissau.svg')" }}
     >
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+      {/* Camada escura para dar foco ao formulário */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"></div>
 
-      <div className="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full border-t-4 border-accent relative z-10">
+      <div className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-md w-full relative z-10 border border-white/20">
         
-        <div className="flex justify-center mb-6">
-          <div className="bg-accent/10 p-4 rounded-full">
-            <UserPlus size={40} className="text-accent" />
+        <button 
+          onClick={() => navigate('/')} 
+          className="absolute top-4 left-4 text-gray-400 hover:text-[#E53E3E] transition-colors"
+        >
+          <ArrowLeft size={24} />
+        </button>
+
+        <div className="flex justify-center mb-4">
+          <div className="bg-[#F97316] p-4 rounded-full shadow-lg">
+            <UserPlus size={32} className="text-white" />
           </div>
         </div>
         
-        <h1 className="text-2xl font-bold text-center text-gray-800 mb-2">
-          Criar sua Conta
+        <h1 className="text-2xl font-black text-center text-[#1E293B] mb-1">
+          CRIAR CONTA
         </h1>
-        <p className="text-center text-gray-500 mb-6 font-medium text-sm">
-          Preencha seus dados para pedir no Kanhen Alil
+        <p className="text-center text-gray-500 mb-6 text-sm font-medium">
+          Junte-se ao Kanhen Alil
         </p>
 
-        {/* Mostra mensagem de erro se houver */}
         {erro && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-sm font-semibold text-center">
+          <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-6 text-sm font-bold text-center">
             {erro}
           </div>
         )}
         
         <form onSubmit={fazerCadastro} className="space-y-4">
           <div>
-            <label className="block text-gray-700 font-semibold mb-1 text-sm">Nome Completo</label>
-            <input 
-              type="text" 
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent transition" 
-              placeholder="Ex: João Silva" 
-            />
+            <label className="block text-gray-700 font-bold mb-1 text-xs uppercase">Nome Completo</label>
+            <div className="relative">
+              <User size={18} className="absolute left-3 top-3 text-gray-400" />
+              <input 
+                type="text" 
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 pl-10 p-3 rounded-xl focus:ring-2 focus:ring-[#F97316] outline-none text-sm" 
+                placeholder="Ex: Mamadu Balde" 
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-1 text-sm">Número de Celular</label>
-            <input 
-              type="tel" 
-              value={celular}
-              onChange={(e) => setCelular(e.target.value)}
-              className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent transition" 
-              placeholder="Seu número em Guiné-Bissau" 
-            />
+            <label className="block text-gray-700 font-bold mb-1 text-xs uppercase">Nº de Celular</label>
+            <div className="relative">
+              <Phone size={18} className="absolute left-3 top-3 text-gray-400" />
+              <input 
+                type="tel" 
+                value={celular}
+                onChange={(e) => setCelular(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 pl-10 p-3 rounded-xl focus:ring-2 focus:ring-[#F97316] outline-none text-sm" 
+                placeholder="95XXXXXXX" 
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-1 text-sm">Endereço de Entrega</label>
-            <input 
-              type="text" 
-              value={endereco}
-              onChange={(e) => setEndereco(e.target.value)}
-              className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent transition" 
-              placeholder="Bairro, Rua, Ponto de Referência" 
-            />
+            <label className="block text-gray-700 font-bold mb-1 text-xs uppercase">Endereço de Entrega</label>
+            <div className="relative">
+              <MapPin size={18} className="absolute left-3 top-3 text-gray-400" />
+              <input 
+                type="text" 
+                value={endereco}
+                onChange={(e) => setEndereco(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 pl-10 p-3 rounded-xl focus:ring-2 focus:ring-[#F97316] outline-none text-sm" 
+                placeholder="Bairro e Ponto de Referência" 
+              />
+            </div>
           </div>
           
           <div>
-            <label className="block text-gray-700 font-semibold mb-1 text-sm">Senha</label>
-            <input 
-              type="password" 
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent transition" 
-              placeholder="Crie uma senha forte" 
-            />
+            <label className="block text-gray-700 font-bold mb-1 text-xs uppercase">Palavra-passe</label>
+            <div className="relative">
+              <Lock size={18} className="absolute left-3 top-3 text-gray-400" />
+              <input 
+                type="password" 
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 pl-10 p-3 rounded-xl focus:ring-2 focus:ring-[#F97316] outline-none text-sm" 
+                placeholder="Crie uma senha" 
+              />
+            </div>
           </div>
           
           <button 
             type="submit" 
             disabled={loading}
-            className={`w-full text-white font-bold py-3 mt-4 rounded-lg transform transition shadow-lg ${loading ? 'bg-gray-400' : 'bg-accent hover:bg-orange-600 hover:scale-[1.02] shadow-accent/30'}`}
+            className={`w-full text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-2 ${loading ? 'bg-gray-400' : 'bg-[#F97316] hover:bg-orange-600 active:scale-95'}`}
           >
-            {loading ? 'Cadastrando...' : 'Cadastrar e Fazer Pedido'}
+            {loading ? 'A processar...' : 'FINALIZAR CADASTRO'}
           </button>
         </form>
         
         <div className="mt-6 text-center">
-          <p className="text-gray-600 text-sm">
-            Já tem uma conta? <span onClick={() => navigate('/')} className="text-primary font-bold cursor-pointer hover:underline">Faça Login</span>
+          <p className="text-gray-500 text-sm">
+            Já tem conta? <span onClick={() => navigate('/')} className="text-[#E53E3E] font-black cursor-pointer hover:underline">ENTRAR AGORA</span>
           </p>
         </div>
       </div>
