@@ -193,7 +193,7 @@ const avisarClienteWhatsApp = (nomeCliente, telefoneCliente, status) => {
     <div className="min-h-screen bg-secondary flex pb-16 md:pb-0">
       <aside className="w-64 bg-primary text-white hidden md:flex flex-col shadow-xl">
         <div className="p-6">
-          <h2 className="text-2xl font-bold">KaSnhen Alil</h2>
+          <h2 className="text-2xl font-bold">Kanhen Alil</h2>
           <p className="text-red-200 text-sm">Painel do Chefe</p>
         </div>
         <nav className="flex-1 px-4 space-y-2 mt-4">
