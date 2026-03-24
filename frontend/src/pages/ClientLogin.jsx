@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Utensils, Phone, Lock, LogIn } from 'lucide-react';
+import { Utensils, Phone, Lock, LogIn, Download, Share } from 'lucide-react';
 import { supabase } from '../supabase';
 
 export default function ClientLogin() {
@@ -10,6 +10,36 @@ export default function ClientLogin() {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Estados para instalação do App
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isIOS, setIsIOS] = useState(false);
+
+  useEffect(() => {
+    // 1. Escuta Android para mostrar o botão de instalar
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setInstallPrompt(e); 
+    });
+
+    // 2. Detecta se é um iPhone/iPad
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+    const isStandalone = ('standalone' in window.navigator) && window.navigator.standalone;
+    
+    if (isIosDevice && !isStandalone) {
+      setIsIOS(true);
+    }
+  }, []);
+
+  const instalarApp = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null); 
+    }
+  };
 
   const fazerLogin = async (e) => {
     e.preventDefault();
@@ -48,11 +78,11 @@ export default function ClientLogin() {
   return (
     <div 
       className="min-h-screen flex items-center justify-center px-4 bg-cover bg-center bg-no-repeat relative"
-      // 👇 Usei o link da imagem da bandeira que você me enviou aqui!
-      style={{ backgroundImage: "url('https://i.imgur.com/8Q9Z5bQ.jpeg')" }}
+      // 👇 Link oficial e permanente da bandeira da Guiné-Bissau
+      style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/c/ce/Flag_of_Guinea-Bissau.svg')" }}
     >
-      {/* Película escura (Overlay) para o formulário aparecer bem sobre a bandeira */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"></div>
+      {/* Película escura para dar destaque ao formulário branco */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"></div>
       
       <div className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-md w-full relative z-10 border border-white/20">
         
@@ -65,9 +95,31 @@ export default function ClientLogin() {
         <h1 className="text-3xl font-extrabold text-center text-[#1E293B] mb-1 tracking-tight">
           KANHEN ALIL
         </h1>
-        <p className="text-center text-[#F97316] font-semibold mb-8 text-xs uppercase tracking-wider">
+        <p className="text-center text-[#F97316] font-semibold mb-6 text-xs uppercase tracking-wider">
           O Melhor Sabor da Guiné
         </p>
+
+        {/* 👇 BOTÃO DE INSTALAÇÃO - ANDROID 👇 */}
+        {installPrompt && (
+          <button 
+            onClick={instalarApp}
+            className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl mb-6 shadow-md transition-all animate-bounce"
+          >
+            <Download size={20} />
+            Instalar App no Celular
+          </button>
+        )}
+
+        {/* 👇 AVISO DE INSTALAÇÃO - IPHONE / IOS 👇 */}
+        {isIOS && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-xl mb-6 text-sm text-center">
+            <p className="font-bold mb-1">Para instalar no iPhone:</p>
+            <p className="flex items-center justify-center gap-1">
+              Toque em <Share size={16} className="text-blue-600 mx-1" /> e escolha <br/> 
+              <strong>"Adicionar à Tela de Início"</strong>
+            </p>
+          </div>
+        )}
 
         {erro && (
           <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-6 text-sm font-medium flex items-center gap-2">
@@ -87,7 +139,7 @@ export default function ClientLogin() {
                 value={celular}
                 onChange={(e) => setCelular(e.target.value)}
                 className="w-full bg-gray-50 border border-gray-200 text-gray-800 pl-10 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E53E3E] transition-all text-sm" 
-                placeholder="Ex: 955915392" 
+                placeholder="Ex: 955XXXXXX" 
               />
             </div>
           </div>

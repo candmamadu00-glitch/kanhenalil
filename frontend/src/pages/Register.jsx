@@ -53,12 +53,10 @@ export default function Register() {
   return (
     <div 
       className="min-h-screen flex items-center justify-center px-4 bg-cover bg-center bg-no-repeat relative"
-      // Se quiser a bandeira rústica, troque para: https://i.imgur.com/8Q9Z5bQ.jpeg
       style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/c/ce/Flag_of_Guinea-Bissau.svg')" }}
     >
-      {/* Camada escura para dar foco ao formulário */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"></div>
-
+      {/* Película escura */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"></div>
       <div className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-md w-full relative z-10 border border-white/20">
         
         <button 
