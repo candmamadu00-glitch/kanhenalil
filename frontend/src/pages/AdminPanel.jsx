@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Utensils, ShoppingBag, Edit, Trash, Clock, Check, Plus, X, LogOut, UploadCloud, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, Utensils, ShoppingBag, Edit, Trash, Clock, Check, Plus, X, LogOut, UploadCloud, MessageCircle, Briefcase, PhoneCall } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,41 +10,38 @@ export default function AdminPanel() {
   const [produtos, setProdutos] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
-  // Estados do Modal
+  // Estados do Modal de Produtos
   const [isModalAberto, setIsModalAberto] = useState(false);
   const [adicionando, setAdicionando] = useState(false);
-  const [idEditando, setIdEditando] = useState(null); // Para saber se estamos criando ou editando
+  const [idEditando, setIdEditando] = useState(null); 
   const [novoPrato, setNovoPrato] = useState({ nome: '', preco: '', descricao: '', imagem: '', status: 'Disponível' });
-  const [arquivoImagem, setArquivoImagem] = useState(null); // Para guardar a foto selecionada
+  const [arquivoImagem, setArquivoImagem] = useState(null); 
   
   useEffect(() => {
     buscarDados();
 
-    // MÁGICA 1: Fica escutando novos pedidos em tempo real
+    // Escutando novos pedidos em tempo real
     const canalPedidos = supabase
       .channel('novos-pedidos')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'pedidos' },
         (payload) => {
-          // Quando chega um pedido novo...
-          console.log('Chegou um pedido novo!', payload);
-          
           // Toca um som de campainha de restaurante!
           const somCampainha = new Audio('https://actions.google.com/sounds/v1/alarms/ding_dong_bell.ogg');
           somCampainha.play().catch(e => console.log('O navegador bloqueou o som. Interaja com a página primeiro.'));
 
-          // Adiciona o pedido no topo da lista sem precisar atualizar a página
+          // Adiciona o pedido no topo da lista
           setPedidos((pedidosAtuais) => [payload.new, ...pedidosAtuais]);
         }
       )
       .subscribe();
 
-    // Quando o admin sair do painel, desliga o "espião" para não gastar internet
     return () => {
       supabase.removeChannel(canalPedidos);
     };
   }, []);
+
   const buscarDados = async () => {
     setCarregando(true);
     try {
@@ -62,7 +59,7 @@ export default function AdminPanel() {
     }
   };
 
-  const mudarStatusPedido = async (id, novoStatus) => {
+  const atualizarStatusPedido = async (id, novoStatus) => {
     try {
       const { error } = await supabase.from('pedidos').update({ status: novoStatus }).eq('id', id);
       if (error) throw error;
@@ -71,23 +68,33 @@ export default function AdminPanel() {
       alert("Erro ao atualizar status!");
     }
   };
-const avisarClienteWhatsApp = (nomeCliente, telefoneCliente, status) => {
-    // Limpa o número para tirar espaços ou traços que o cliente possa ter digitado
+
+  // WhatsApp Inteligente (Serve para Comida e para Serviços)
+  const avisarClienteWhatsApp = (nomeCliente, telefoneCliente, itens, tipoAviso) => {
     const numeroLimpo = telefoneCliente.replace(/\D/g, ''); 
+    const isServico = itens.includes('[SERVIÇO]');
     
     let mensagem = `Olá, ${nomeCliente}! 🍲 Aqui é do Kanhen Alil.\n\n`;
     
-    if (status === 'Em Preparação') {
-      mensagem += `O seu pedido já foi para a cozinha e está sendo preparado com muito carinho! Em breve sai para entrega.`;
-    } else if (status === 'Entregue') {
-      mensagem += `O seu pedido acabou de sair para entrega! Fique de olho 🛵💨`;
+    if (isServico) {
+      mensagem = `Olá ${nomeCliente}, tudo bem? Sou do *Kanhen Alil*. Recebemos sua solicitação de orçamento para serviços. Podemos conversar sobre os detalhes?`;
     } else {
-      mensagem += `O seu pedido está atualizado para: ${status}.`;
+      if (tipoAviso === 'Em Preparação') {
+        mensagem += `O seu pedido já foi para a cozinha e está sendo preparado com muito carinho! Em breve sai para entrega.`;
+      } else if (tipoAviso === 'Entregue') {
+        mensagem += `O seu pedido acabou de sair para entrega! Fique de olho 🛵💨`;
+      } else {
+        mensagem += `Gostaríamos de falar sobre o seu pedido.`;
+      }
     }
 
-    const linkWhatsapp = `https://wa.me/${numeroLimpo}?text=${encodeURIComponent(mensagem)}`;
+    const linkWhatsapp = `https://wa.me/245${numeroLimpo}?text=${encodeURIComponent(mensagem)}`;
     window.open(linkWhatsapp, '_blank');
   };
+
+  // ==========================================
+  // FUNÇÕES DE GERENCIAMENTO DO CARDÁPIO
+  // ==========================================
   const apagarPrato = async (id) => {
     if (!window.confirm("Tem certeza que deseja apagar este prato para sempre?")) return;
     try {
@@ -110,7 +117,6 @@ const avisarClienteWhatsApp = (nomeCliente, telefoneCliente, status) => {
     }
   };
 
-  // Funções para abrir e fechar o modal corretamente
   const abrirModalNovo = () => {
     setIdEditando(null);
     setNovoPrato({ nome: '', preco: '', descricao: '', imagem: '', status: 'Disponível' });
@@ -125,10 +131,9 @@ const avisarClienteWhatsApp = (nomeCliente, telefoneCliente, status) => {
     setIsModalAberto(true);
   };
 
-  // Função para fazer Upload da imagem para o Supabase
   const fazerUploadImagem = async (file) => {
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`; // Nome aleatório para não repetir
+    const fileName = `${Math.random()}.${fileExt}`; 
     const filePath = `${fileName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -137,7 +142,6 @@ const avisarClienteWhatsApp = (nomeCliente, telefoneCliente, status) => {
 
     if (uploadError) throw uploadError;
 
-    // Pega o link público da imagem que acabou de subir
     const { data } = supabase.storage.from('imagens_produtos').getPublicUrl(filePath);
     return data.publicUrl;
   };
@@ -148,7 +152,6 @@ const avisarClienteWhatsApp = (nomeCliente, telefoneCliente, status) => {
     try {
       let urlDaImagem = novoPrato.imagem;
 
-      // Se o usuário selecionou um arquivo novo, fazemos o upload
       if (arquivoImagem) {
         urlDaImagem = await fazerUploadImagem(arquivoImagem);
       }
@@ -162,11 +165,9 @@ const avisarClienteWhatsApp = (nomeCliente, telefoneCliente, status) => {
       };
 
       if (idEditando) {
-        // EDITAR PRATO EXISTENTE
         const { error } = await supabase.from('produtos').update(dadosParaSalvar).eq('id', idEditando);
         if (error) throw error;
       } else {
-        // CRIAR NOVO PRATO
         const { error } = await supabase.from('produtos').insert([dadosParaSalvar]);
         if (error) throw error;
       }
@@ -185,227 +186,240 @@ const avisarClienteWhatsApp = (nomeCliente, telefoneCliente, status) => {
     await supabase.auth.signOut();
     navigate('/');
   };
-// === CÁLCULOS DO DASHBOARD ===
-  const totalPedidos = pedidos.length;
-  const pedidosPendentes = pedidos.filter(p => p.status === 'Pendente').length;
-  const pratosDisponiveis = produtos.filter(p => p.status === 'Disponível').length;
+
   return (
-    <div className="min-h-screen bg-secondary flex pb-16 md:pb-0">
-      <aside className="w-64 bg-primary text-white hidden md:flex flex-col shadow-xl">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold">Kanhen Alil</h2>
-          <p className="text-red-200 text-sm">Painel do Chefe</p>
+    <div className="flex h-screen bg-gray-50 font-sans">
+      
+      {/* MENU LATERAL ESCURO (NOVO DESIGN) */}
+      <aside className="w-64 bg-[#0F172A] text-white hidden md:flex flex-col shadow-2xl z-20">
+        <div className="p-6 border-b border-gray-800 flex items-center gap-3">
+          <div className="bg-[#F97316] p-2 rounded-lg"><LayoutDashboard size={24} className="text-white"/></div>
+          <h2 className="text-xl font-black tracking-wider">PAINEL ADMIN</h2>
         </div>
-        <nav className="flex-1 px-4 space-y-2 mt-4">
-          <button onClick={() => setAbaAtiva('pedidos')} className={`w-full flex items-center space-x-3 p-3 rounded-lg font-medium transition ${abaAtiva === 'pedidos' ? 'bg-red-800' : 'hover:bg-red-700'}`}>
-            <ShoppingBag size={20} /><span>Pedidos Recebidos</span>
+        
+        <nav className="flex-1 p-4 space-y-2">
+          <button 
+            onClick={() => setAbaAtiva('pedidos')} 
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all font-bold ${abaAtiva === 'pedidos' ? 'bg-[#F97316] text-white shadow-lg shadow-orange-500/20' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+          >
+            <ShoppingBag size={20} /> Pedidos & Serviços
+            {pedidos.filter(p => p.status === 'Pendente').length > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">
+                {pedidos.filter(p => p.status === 'Pendente').length}
+              </span>
+            )}
           </button>
-          <button onClick={() => setAbaAtiva('produtos')} className={`w-full flex items-center space-x-3 p-3 rounded-lg font-medium transition ${abaAtiva === 'produtos' ? 'bg-red-800' : 'hover:bg-red-700'}`}>
-            <Utensils size={20} /><span>Meu Cardápio</span>
+          
+          <button 
+            onClick={() => setAbaAtiva('produtos')} 
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all font-bold ${abaAtiva === 'produtos' ? 'bg-[#F97316] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+          >
+            <Utensils size={20} /> Gerir Cardápio
           </button>
         </nav>
-        <div className="p-4 border-t border-red-800">
-          <button onClick={fazerLogout} className="w-full flex items-center justify-center space-x-2 bg-red-800 hover:bg-red-900 p-3 rounded-lg transition font-bold text-red-100">
-            <LogOut size={20} /> <span>Sair do Painel</span>
+
+        <div className="p-4 border-t border-gray-800">
+          <button onClick={fazerLogout} className="w-full flex justify-center items-center gap-2 px-4 py-3 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all font-bold">
+            <LogOut size={18} /> Sair do Sistema
           </button>
         </div>
       </aside>
 
-      <nav className="md:hidden fixed bottom-0 w-full bg-primary text-white flex justify-around p-3 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-        <button onClick={() => setAbaAtiva('pedidos')} className={`flex flex-col items-center p-2 rounded-lg ${abaAtiva === 'pedidos' ? 'text-white' : 'text-red-300'}`}>
+      {/* MENU MOBILE */}
+      <nav className="md:hidden fixed bottom-0 w-full bg-[#0F172A] text-white flex justify-around p-3 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+        <button onClick={() => setAbaAtiva('pedidos')} className={`flex flex-col items-center p-2 rounded-lg ${abaAtiva === 'pedidos' ? 'text-[#F97316]' : 'text-gray-400'}`}>
           <ShoppingBag size={24} /><span className="text-xs font-bold mt-1">Pedidos</span>
         </button>
-        <button onClick={() => setAbaAtiva('produtos')} className={`flex flex-col items-center p-2 rounded-lg ${abaAtiva === 'produtos' ? 'text-white' : 'text-red-300'}`}>
+        <button onClick={() => setAbaAtiva('produtos')} className={`flex flex-col items-center p-2 rounded-lg ${abaAtiva === 'produtos' ? 'text-[#F97316]' : 'text-gray-400'}`}>
           <Utensils size={24} /><span className="text-xs font-bold mt-1">Cardápio</span>
         </button>
-        <button onClick={fazerLogout} className="flex flex-col items-center p-2 rounded-lg text-red-300 hover:text-white">
+        <button onClick={fazerLogout} className="flex flex-col items-center p-2 rounded-lg text-red-400 hover:text-red-300">
           <LogOut size={24} /><span className="text-xs font-bold mt-1">Sair</span>
         </button>
       </nav>
 
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto w-full">
+      {/* ÁREA PRINCIPAL */}
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8 bg-gray-50">
+        
+        {/* CABEÇALHO */}
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
-            {abaAtiva === 'pedidos' ? 'Gestão de Pedidos' : 'Gestão de Cardápio'}
+          <h1 className="text-2xl sm:text-3xl font-black text-[#1E293B]">
+            {abaAtiva === 'pedidos' ? 'Caixa de Entrada' : 'Gestão de Cardápio'}
           </h1>
           <div className="flex gap-2 w-full sm:w-auto">
             {abaAtiva === 'produtos' && (
-              <button onClick={abrirModalNovo} className="flex-1 sm:flex-none bg-accent text-white px-4 py-2 rounded-lg shadow-md font-bold hover:bg-orange-600 transition flex items-center justify-center gap-2">
+              <button onClick={abrirModalNovo} className="flex-1 sm:flex-none bg-[#F97316] text-white px-4 py-2 rounded-xl shadow-md font-bold hover:bg-orange-600 transition flex items-center justify-center gap-2">
                 <Plus size={20} /> Novo Prato
               </button>
             )}
-            <button onClick={buscarDados} className="bg-white px-4 py-2 border border-gray-200 rounded-lg shadow-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+            <button onClick={buscarDados} className="bg-white px-4 py-2 border border-gray-200 rounded-xl shadow-sm font-medium text-gray-600 hover:bg-gray-50 transition">
               Atualizar
             </button>
           </div>
         </header>
-        {/* DASHBOARD DE ESTATÍSTICAS */}
-        {abaAtiva === 'pedidos' && !carregando && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 transition hover:shadow-md">
-              <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
-                <ShoppingBag size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Total de Pedidos</p>
-                <p className="text-2xl font-bold text-gray-800">{totalPedidos}</p>
-              </div>
-            </div>
 
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 transition hover:shadow-md">
-              <div className="p-3 bg-yellow-100 text-yellow-600 rounded-lg">
-                <Clock size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Aguardando Preparo</p>
-                <p className="text-2xl font-bold text-gray-800">{pedidosPendentes}</p>
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 transition hover:shadow-md">
-              <div className="p-3 bg-green-100 text-green-600 rounded-lg">
-                <Utensils size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Pratos Disponíveis</p>
-                <p className="text-2xl font-bold text-gray-800">{pratosDisponiveis}</p>
-              </div>
-            </div>
-          </div>
-        )}
         {carregando ? (
-          <div className="text-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#F97316]"></div>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <>
+            {/* ========================================= */}
+            {/* TELA DE PEDIDOS (NOVO VISUAL)             */}
+            {/* ========================================= */}
             {abaAtiva === 'pedidos' && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left whitespace-nowrap md:whitespace-normal">
-                  <thead className="bg-gray-50 border-b border-gray-200 text-gray-600">
-                    <tr>
-                      <th className="p-4 font-semibold">Cliente</th>
-                      <th className="p-4 font-semibold hidden md:table-cell">Endereço</th>
-                      <th className="p-4 font-semibold">Itens</th>
-                      <th className="p-4 font-semibold">Status</th>
-                      <th className="p-4 font-semibold text-center">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pedidos.map((pedido) => (
-                      <tr key={pedido.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                        <td className="p-4">
-                          <p className="font-bold text-gray-800">{pedido.nome_cliente}</p>
-                          <p className="text-xs text-gray-500 md:hidden">{pedido.celular_cliente}</p>
-                        </td>
-                        <td className="p-4 hidden md:table-cell">
-                          <p className="text-sm font-medium text-gray-800">{pedido.celular_cliente}</p>
-                          <p className="text-xs text-gray-500">{pedido.endereco_entrega}</p>
-                          
-                          {/* AQUI ESTÁ O LUGAR CORRETO DO PAGAMENTO! */}
-                          <div className="mt-2 inline-block">
-                            {pedido.metodo_pagamento === 'Orange Money' ? (
-                              <div className="bg-orange-50 border border-orange-200 px-2 py-1.5 rounded text-xs">
-                                <span className="font-bold text-orange-700 block mb-0.5">Pagamento: Orange Money</span>
-                                <span className="text-orange-600 font-mono">TXN: {pedido.codigo_transacao}</span>
-                              </div>
-                            ) : (
-                              <div className="bg-gray-100 border border-gray-200 px-2 py-1.5 rounded text-xs text-gray-700">
-                                <span className="font-bold">Pagamento:</span> Dinheiro na Entrega
-                              </div>
-                            )}
+              <div className="animate-fade-in max-w-6xl mx-auto">
+                <p className="text-gray-500 mb-6 font-medium">Acompanhe e aceite pedidos de comida e solicitações de serviços em tempo real.</p>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {pedidos.map((pedido) => {
+                    const isServico = pedido.itens_comprados.includes('[SERVIÇO]');
+                    
+                    return (
+                      <div key={pedido.id} className={`rounded-3xl shadow-md border overflow-hidden transition-all hover:shadow-xl ${isServico ? 'bg-gradient-to-br from-indigo-900 to-[#1E293B] border-indigo-700 text-white' : 'bg-white border-gray-200'}`}>
+                        
+                        <div className={`p-5 border-b ${isServico ? 'border-indigo-800/50' : 'border-gray-100'} flex justify-between items-start`}>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              {isServico ? <Briefcase size={18} className="text-indigo-300"/> : <ShoppingBag size={18} className="text-[#F97316]"/>}
+                              <h3 className={`font-black text-lg ${isServico ? 'text-white' : 'text-[#1E293B]'}`}>#{pedido.id} - {pedido.nome_cliente}</h3>
+                            </div>
+                            <p className={`text-sm flex items-center gap-1 font-medium ${isServico ? 'text-indigo-300' : 'text-gray-500'}`}>
+                              <MessageCircle size={14} /> {pedido.celular_cliente}
+                            </p>
                           </div>
-                        </td>
-                        <td className="p-4 text-sm text-gray-600 max-w-[150px] truncate" title={pedido.itens_comprados}>{pedido.itens_comprados}</td>
-                        <td className="p-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${pedido.status === 'Pendente' ? 'bg-yellow-100 text-yellow-700' : pedido.status === 'Em Preparação' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                          <span className={`px-3 py-1 rounded-full text-xs font-black shadow-sm ${pedido.status === 'Pendente' ? 'bg-yellow-400 text-yellow-900 animate-pulse' : pedido.status === 'Em Preparação' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'}`}>
                             {pedido.status}
                           </span>
-                        </td>
-                        <td className="p-4 flex flex-col gap-2">
-                          {pedido.status === 'Pendente' && (
-                            <button onClick={() => {
-                                mudarStatusPedido(pedido.id, 'Em Preparação');
-                                avisarClienteWhatsApp(pedido.nome_cliente, pedido.celular_cliente, 'Em Preparação');
-                              }} 
-                              className="text-xs bg-blue-500 text-white px-2 py-1.5 rounded hover:bg-blue-600 flex items-center justify-center gap-1">
-                              <Clock size={14}/> <span className="hidden sm:inline">Preparar e Avisar</span>
-                            </button>
-                          )}
-                          {pedido.status === 'Em Preparação' && (
-                            <button onClick={() => {
-                                mudarStatusPedido(pedido.id, 'Entregue');
-                                avisarClienteWhatsApp(pedido.nome_cliente, pedido.celular_cliente, 'Entregue');
-                              }} 
-                              className="text-xs bg-green-500 text-white px-2 py-1.5 rounded hover:bg-green-600 flex items-center justify-center gap-1">
-                              <Check size={14}/> <span className="hidden sm:inline">Entregar e Avisar</span>
-                            </button>
-                          )}
+                        </div>
+
+                        <div className="p-5">
+                          <div className={`p-4 rounded-2xl mb-4 ${isServico ? 'bg-indigo-950/50 text-indigo-100' : 'bg-gray-50 text-gray-700 border border-gray-100'}`}>
+                            <p className="text-sm font-medium leading-relaxed">{pedido.itens_comprados.replace('[SERVIÇO] ', '')}</p>
+                          </div>
                           
-                          {/* Botão extra só para chamar no WhatsApp a qualquer momento */}
-                          <button onClick={() => avisarClienteWhatsApp(pedido.nome_cliente, pedido.celular_cliente, 'Contato')} className="text-xs bg-gray-100 text-gray-700 px-2 py-1.5 rounded hover:bg-green-100 hover:text-green-700 flex items-center justify-center gap-1 mt-1 border border-gray-200">
-                            <MessageCircle size={14}/> <span>WhatsApp</span>
+                          <div className="flex justify-between items-end mb-6">
+                            <div>
+                              <p className={`text-[10px] uppercase font-bold mb-1 ${isServico ? 'text-indigo-300' : 'text-gray-400'}`}>Endereço / Local</p>
+                              <p className={`font-semibold text-sm ${isServico ? 'text-white' : 'text-gray-800'}`}>{pedido.endereco_entrega}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className={`text-[10px] uppercase font-bold mb-1 ${isServico ? 'text-indigo-300' : 'text-gray-400'}`}>Total</p>
+                              <p className={`text-xl font-black ${isServico ? 'text-indigo-300' : 'text-[#E53E3E]'}`}>
+                                {pedido.valor_total === 0 ? 'A Combinar' : `${pedido.valor_total} CFA`}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Se for Orange Money, exibe de forma destacada */}
+                          {pedido.metodo_pagamento === 'Orange Money' && (
+                            <div className={`mb-4 px-3 py-2 rounded-lg text-xs font-bold flex flex-col ${isServico ? 'bg-indigo-800 text-indigo-200' : 'bg-orange-50 text-orange-700 border border-orange-200'}`}>
+                              <span>Pago via Orange Money</span>
+                              <span className="font-mono text-sm">TXN: {pedido.codigo_transacao}</span>
+                            </div>
+                          )}
+
+                          {/* BOTÃO DO WHATSAPP */}
+                          <button 
+                            onClick={() => avisarClienteWhatsApp(pedido.nome_cliente, pedido.celular_cliente, pedido.itens_comprados, 'Contato')}
+                            className="w-full mb-3 flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1DA851] text-white py-3 rounded-xl font-bold shadow-lg shadow-green-500/30 transition-all active:scale-95"
+                          >
+                            <PhoneCall size={18} /> Contactar Cliente
                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+                          {/* BOTÕES DE STATUS */}
+                          <div className="grid grid-cols-2 gap-2">
+                            {pedido.status === 'Pendente' && (
+                              <>
+                                <button onClick={() => {
+                                  atualizarStatusPedido(pedido.id, 'Em Preparação');
+                                  if(!isServico) avisarClienteWhatsApp(pedido.nome_cliente, pedido.celular_cliente, pedido.itens_comprados, 'Em Preparação');
+                                }} className="flex items-center justify-center gap-1 bg-blue-500 text-white px-3 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-600 transition">
+                                  <Check size={16} /> Aceitar
+                                </button>
+                                <button onClick={() => atualizarStatusPedido(pedido.id, 'Cancelado')} className={`flex items-center justify-center gap-1 px-3 py-2.5 rounded-xl text-sm font-bold transition ${isServico ? 'bg-indigo-800 text-indigo-300 hover:bg-indigo-700' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}>
+                                  <X size={16} /> Recusar
+                                </button>
+                              </>
+                            )}
+                            {pedido.status === 'Em Preparação' && (
+                              <button onClick={() => {
+                                atualizarStatusPedido(pedido.id, 'Entregue');
+                                if(!isServico) avisarClienteWhatsApp(pedido.nome_cliente, pedido.celular_cliente, pedido.itens_comprados, 'Entregue');
+                              }} className="col-span-2 flex items-center justify-center gap-1 bg-green-500 text-white px-3 py-2.5 rounded-xl text-sm font-bold hover:bg-green-600 shadow-md transition">
+                                <Check size={16} /> Marcar como Concluído
+                              </button>
+                            )}
+                          </div>
+
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
+            {/* ========================================= */}
+            {/* TELA DO CARDÁPIO (SEU CÓDIGO ORIGINAL)    */}
+            {/* ========================================= */}
             {abaAtiva === 'produtos' && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left whitespace-nowrap sm:whitespace-normal">
-                  <thead className="bg-gray-50 border-b border-gray-200 text-gray-600">
-                    <tr>
-                      <th className="p-4 font-semibold">Prato</th>
-                      <th className="p-4 font-semibold">Preço</th>
-                      <th className="p-4 font-semibold hidden sm:table-cell">Status</th>
-                      <th className="p-4 font-semibold text-center">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {produtos.map((prato) => (
-                      <tr key={prato.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                        <td className="p-4 flex items-center gap-3">
-                          <img src={prato.imagem} className="w-12 h-12 object-cover rounded-lg shadow-sm" alt="Prato"/>
-                          <div>
-                            <p className="font-bold text-gray-800">{prato.nome}</p>
-                            <button onClick={() => mudarStatusPrato(prato.id, prato.status)} className={`mt-1 sm:hidden px-2 py-0.5 rounded-full text-[10px] font-bold ${prato.status === 'Disponível' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{prato.status}</button>
-                          </div>
-                        </td>
-                        <td className="p-4 text-primary font-bold">{prato.preco} CFA</td>
-                        <td className="p-4 hidden sm:table-cell">
-                          <button onClick={() => mudarStatusPrato(prato.id, prato.status)} className={`px-3 py-1 rounded-full text-xs font-bold ${prato.status === 'Disponível' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>{prato.status}</button>
-                        </td>
-                        <td className="p-4 flex justify-center space-x-2">
-                          <button onClick={() => abrirModalEditar(prato)} className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition" title="Editar Prato"><Edit size={18} /></button>
-                          <button onClick={() => apagarPrato(prato.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition" title="Apagar Prato"><Trash size={18} /></button>
-                        </td>
+              <div className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left whitespace-nowrap sm:whitespace-normal">
+                    <thead className="bg-gray-50 border-b border-gray-200 text-gray-600">
+                      <tr>
+                        <th className="p-4 font-semibold">Prato</th>
+                        <th className="p-4 font-semibold">Preço</th>
+                        <th className="p-4 font-semibold hidden sm:table-cell">Status</th>
+                        <th className="p-4 font-semibold text-center">Ações</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {produtos.map((prato) => (
+                        <tr key={prato.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
+                          <td className="p-4 flex items-center gap-3">
+                            <img src={prato.imagem} className="w-12 h-12 object-cover rounded-lg shadow-sm" alt="Prato"/>
+                            <div>
+                              <p className="font-bold text-gray-800">{prato.nome}</p>
+                              <button onClick={() => mudarStatusPrato(prato.id, prato.status)} className={`mt-1 sm:hidden px-2 py-0.5 rounded-full text-[10px] font-bold ${prato.status === 'Disponível' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{prato.status}</button>
+                            </div>
+                          </td>
+                          <td className="p-4 text-[#F97316] font-bold">{prato.preco} CFA</td>
+                          <td className="p-4 hidden sm:table-cell">
+                            <button onClick={() => mudarStatusPrato(prato.id, prato.status)} className={`px-3 py-1 rounded-full text-xs font-bold ${prato.status === 'Disponível' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>{prato.status}</button>
+                          </td>
+                          <td className="p-4 flex justify-center space-x-2">
+                            <button onClick={() => abrirModalEditar(prato)} className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition" title="Editar Prato"><Edit size={18} /></button>
+                            <button onClick={() => apagarPrato(prato.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition" title="Apagar Prato"><Trash size={18} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
-          </div>
+          </>
         )}
       </main>
 
+      {/* ========================================= */}
+      {/* MODAL DE ADICIONAR/EDITAR (SEU CÓDIGO)    */}
+      {/* ========================================= */}
       {isModalAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="bg-primary p-4 flex justify-between items-center text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/80 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up">
+            <div className="bg-[#1E293B] p-5 flex justify-between items-center text-white">
               <h3 className="font-bold text-lg">{idEditando ? 'Editar Prato' : 'Novo Prato'}</h3>
-              <button onClick={() => setIsModalAberto(false)}><X size={20}/></button>
+              <button onClick={() => setIsModalAberto(false)} className="hover:bg-white/10 p-1.5 rounded-full"><X size={20}/></button>
             </div>
             <form onSubmit={salvarPrato} className="p-6 space-y-4">
-              <input required type="text" placeholder="Nome do Prato" value={novoPrato.nome} onChange={e => setNovoPrato({...novoPrato, nome: e.target.value})} className="w-full border p-2.5 rounded-lg"/>
-              <input required type="number" placeholder="Preço (CFA)" value={novoPrato.preco} onChange={e => setNovoPrato({...novoPrato, preco: e.target.value})} className="w-full border p-2.5 rounded-lg"/>
+              <input required type="text" placeholder="Nome do Prato" value={novoPrato.nome} onChange={e => setNovoPrato({...novoPrato, nome: e.target.value})} className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-[#F97316] outline-none"/>
+              <input required type="number" placeholder="Preço (CFA)" value={novoPrato.preco} onChange={e => setNovoPrato({...novoPrato, preco: e.target.value})} className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-[#F97316] outline-none"/>
               
-              {/* CAMPO DE UPLOAD DE FOTO AQUI */}
-              <div className="border border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 transition cursor-pointer relative">
+              {/* CAMPO DE UPLOAD DE FOTO */}
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition cursor-pointer relative bg-gray-50/50">
                 <input 
                   type="file" 
                   accept="image/*" 
@@ -413,15 +427,16 @@ const avisarClienteWhatsApp = (nomeCliente, telefoneCliente, status) => {
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
                 <div className="flex flex-col items-center pointer-events-none">
-                  <UploadCloud size={24} className="text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-600 font-medium">
+                  <UploadCloud size={28} className="text-[#F97316] mb-2" />
+                  <span className="text-sm text-gray-700 font-bold">
                     {arquivoImagem ? arquivoImagem.name : (idEditando ? 'Clique para trocar a foto' : 'Clique para anexar uma foto')}
                   </span>
+                  {!arquivoImagem && <span className="text-xs text-gray-400 mt-1">PNG, JPG até 5MB</span>}
                 </div>
               </div>
 
-              <textarea required placeholder="Descrição do Prato (ingredientes, etc)" value={novoPrato.descricao} onChange={e => setNovoPrato({...novoPrato, descricao: e.target.value})} className="w-full border p-2.5 rounded-lg h-24"></textarea>
-              <button type="submit" disabled={adicionando} className="w-full text-white font-bold py-3 rounded-xl bg-accent hover:bg-orange-600">
+              <textarea required placeholder="Descrição do Prato (ingredientes, etc)" value={novoPrato.descricao} onChange={e => setNovoPrato({...novoPrato, descricao: e.target.value})} className="w-full border border-gray-200 p-3 rounded-xl h-24 focus:ring-2 focus:ring-[#F97316] outline-none"></textarea>
+              <button type="submit" disabled={adicionando} className={`w-full text-white font-bold py-3.5 rounded-xl transition-all shadow-md ${adicionando ? 'bg-gray-400' : 'bg-[#F97316] hover:bg-orange-600 active:scale-95'}`}>
                 {adicionando ? 'A Salvar...' : (idEditando ? 'Atualizar Prato' : 'Adicionar ao Cardápio')}
               </button>
             </form>
