@@ -67,9 +67,11 @@ export default function Register() {
         </button>
 
         <div className="flex justify-center mb-4">
-          <div className="bg-[#F97316] p-4 rounded-full shadow-lg">
-            <UserPlus size={32} className="text-white" />
-          </div>
+          <img 
+            src="/logo.jpeg" 
+            alt="Logo Kanhen Alil" 
+            className="w-24 h-24 rounded-full shadow-xl border-4 border-[#F97316] object-cover relative -mt-12"
+          />
         </div>
         
         <h1 className="text-2xl font-black text-center text-[#1E293B] mb-1">

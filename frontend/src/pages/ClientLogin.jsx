@@ -87,9 +87,11 @@ export default function ClientLogin() {
       <div className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-md w-full relative z-10 border border-white/20">
         
         <div className="flex justify-center mb-4 mt-2">
-          <div className="bg-[#E53E3E] p-4 rounded-full shadow-lg flex items-center justify-center w-16 h-16">
-            <Utensils size={32} className="text-white" />
-          </div>
+          <img 
+            src="/logo.jpeg" 
+            alt="Logo Kanhen Alil" 
+            className="w-24 h-24 rounded-full shadow-xl border-4 border-[#F97316] object-cover"
+          />
         </div>
         
         <h1 className="text-3xl font-extrabold text-center text-[#1E293B] mb-1 tracking-tight">

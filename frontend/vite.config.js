@@ -19,15 +19,14 @@ export default defineConfig({
         display: 'standalone', // Isso faz abrir como um app, sem a barra do navegador!
         icons: [
           {
-            // Usando um ícone temporário de comida para o app (você pode trocar depois)
-            src: 'https://cdn-icons-png.flaticon.com/512/3170/3170733.png',
+            src: '/logo.jpeg',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/jpeg'
           },
           {
-            src: 'https://cdn-icons-png.flaticon.com/512/3170/3170733.png',
+            src: '/logo.jpeg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/jpeg'
           }
         ]
       }
