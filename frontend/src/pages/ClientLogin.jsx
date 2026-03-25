@@ -11,18 +11,15 @@ export default function ClientLogin() {
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // Estados para instalação do App
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // 1. Escuta Android para mostrar o botão de instalar
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       setInstallPrompt(e); 
     });
 
-    // 2. Detecta se é um iPhone/iPad
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
     const isStandalone = ('standalone' in window.navigator) && window.navigator.standalone;
@@ -78,11 +75,11 @@ export default function ClientLogin() {
   return (
     <div 
       className="min-h-screen flex items-center justify-center px-4 bg-cover bg-center bg-no-repeat relative"
-      // 👇 Link oficial e permanente da bandeira da Guiné-Bissau
-      style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/c/ce/Flag_of_Guinea-Bissau.svg')" }}
+      // 👇 Alterado para usar a sua imagem
+      style={{ backgroundImage: "url('/kanhenalil.jpeg')" }}
     >
-      {/* Película escura para dar destaque ao formulário branco */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"></div>
+      {/* Película escura mais intensa para destacar o branco e não misturar com a foto */}
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-[3px]"></div>
       
       <div className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-md w-full relative z-10 border border-white/20">
         
@@ -101,7 +98,6 @@ export default function ClientLogin() {
           O Melhor Sabor da Guiné
         </p>
 
-        {/* 👇 BOTÃO DE INSTALAÇÃO - ANDROID 👇 */}
         {installPrompt && (
           <button 
             onClick={instalarApp}
@@ -112,7 +108,6 @@ export default function ClientLogin() {
           </button>
         )}
 
-        {/* 👇 AVISO DE INSTALAÇÃO - IPHONE / IOS 👇 */}
         {isIOS && (
           <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-xl mb-6 text-sm text-center">
             <p className="font-bold mb-1">Para instalar no iPhone:</p>

@@ -53,10 +53,12 @@ export default function Register() {
   return (
     <div 
       className="min-h-screen flex items-center justify-center px-4 bg-cover bg-center bg-no-repeat relative"
-      style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/c/ce/Flag_of_Guinea-Bissau.svg')" }}
+      // 👇 Alterado para a sua imagem
+      style={{ backgroundImage: "url('/kanhenalil.jpeg')" }}
     >
       {/* Película escura */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"></div>
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-[3px]"></div>
+      
       <div className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-md w-full relative z-10 border border-white/20">
         
         <button 
