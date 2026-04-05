@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react';
 import { ShoppingCart, LogOut, X, Trash2, CheckCircle2, ClipboardList, Search, MessageCircle, Wallet, Briefcase, Utensils, Calendar, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
+// 👇 Importamos as Notificações e a Proteção do Cloudflare
+import toast from 'react-hot-toast';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 export default function ClientMenu() {
   const navigate = useNavigate();
 
   // Estados Gerais
-  const [abaAtiva, setAbaAtiva] = useState('cardapio'); // 'cardapio' ou 'servicos'
+  const [abaAtiva, setAbaAtiva] = useState('cardapio'); 
   const [carregando, setCarregando] = useState(true);
   
   // Estados do Cardápio e Carrinho
@@ -38,6 +41,10 @@ export default function ClientMenu() {
   const [detalhesServico, setDetalhesServico] = useState('');
   const [dataServico, setDataServico] = useState('');
 
+  // 👇 Estados de Proteção Anti-Robôs
+  const [captchaTokenComida, setCaptchaTokenComida] = useState(null);
+  const [captchaTokenServico, setCaptchaTokenServico] = useState(null);
+
   const listaServicos = [
     { nome: 'Culinária & Restaurante', desc: 'Buffet completo, cozinheiros e preparo de refeições no local.' },
     { nome: 'Serviços Domésticos', desc: 'Limpeza, organização e manutenção da sua casa com confiança.' },
@@ -54,7 +61,7 @@ export default function ClientMenu() {
         if (error) throw error;
         setPratos(data);
       } catch (error) {
-        console.error("Erro:", error.message);
+        toast.error("Erro ao carregar cardápio.");
       } finally {
         setCarregando(false);
       }
@@ -67,6 +74,7 @@ export default function ClientMenu() {
   const adicionarAoCarrinho = (prato) => {
     setCarrinho([...carrinho, prato]);
     setSucesso(false); 
+    toast.success(`${prato.nome} adicionado!`);
   };
 
   const removerDoCarrinho = (indexParaRemover) => {
@@ -81,10 +89,18 @@ export default function ClientMenu() {
   // Finalizar Comida (Carrinho)
   const finalizarPedido = async (e) => {
     e.preventDefault();
-    if (metodoPagamento === 'Orange Money' && codigoTransacao.trim() === '') {
-      alert("Por favor, digite o código da transação do Orange Money.");
+    
+    // Verificações de segurança
+    if (!captchaTokenComida) {
+      toast.error("Por favor, verifique a segurança do Cloudflare!");
       return;
     }
+    
+    if (metodoPagamento === 'Orange Money' && codigoTransacao.trim() === '') {
+      toast.error("Digite o código da transação do Orange Money.");
+      return;
+    }
+    
     setEnviando(true);
     const nomesDosItens = carrinho.map(item => item.nome).join(', ');
     const celularLimpoParaOBanco = celularCliente.replace(/\D/g, '');
@@ -103,11 +119,15 @@ export default function ClientMenu() {
         }
       ]);
       if (error) throw error;
+      
       setCarrinho([]); setIsCartOpen(false); setSucesso(true);
       setTelefoneBusca(celularLimpoParaOBanco); setCodigoTransacao('');
-      setTimeout(() => setIsStatusOpen(true), 1500); // Abre o status após o sucesso
+      setCaptchaTokenComida(null); // Reseta o captcha após o sucesso
+      
+      toast.success("Pedido enviado com sucesso!");
+      setTimeout(() => setIsStatusOpen(true), 1500); 
     } catch (error) {
-      alert("Erro ao enviar pedido.");
+      toast.error("Erro ao enviar pedido. Tente novamente.");
     } finally {
       setEnviando(false);
     }
@@ -116,6 +136,13 @@ export default function ClientMenu() {
   // Solicitar Serviço Diretamente
   const solicitarServico = async (e) => {
     e.preventDefault();
+    
+    // Verificação de segurança
+    if (!captchaTokenServico) {
+      toast.error("Por favor, verifique a segurança do Cloudflare!");
+      return;
+    }
+
     setEnviando(true);
     const celularLimpo = celularCliente.replace(/\D/g, '');
     const descricaoPedido = `[SERVIÇO] ${servicoSelecionado.nome} | Data: ${dataServico} | Detalhes: ${detalhesServico}`;
@@ -127,7 +154,7 @@ export default function ClientMenu() {
           celular_cliente: celularLimpo,
           endereco_entrega: enderecoEntrega, 
           itens_comprados: descricaoPedido, 
-          valor_total: 0, // 0 indica que é orçamento
+          valor_total: 0, 
           status: 'Pendente',
           metodo_pagamento: 'Orçamento (A Combinar)'
         }
@@ -138,9 +165,12 @@ export default function ClientMenu() {
       setDetalhesServico(''); setDataServico('');
       setSucesso(true);
       setTelefoneBusca(celularLimpo);
+      setCaptchaTokenServico(null); // Reseta o captcha
+      
+      toast.success("Serviço solicitado com sucesso!");
       setTimeout(() => setIsStatusOpen(true), 1500);
     } catch (error) {
-      alert("Erro ao solicitar serviço.");
+      toast.error("Erro ao solicitar serviço.");
     } finally {
       setEnviando(false);
     }
@@ -159,7 +189,7 @@ export default function ClientMenu() {
       if (error) throw error;
       setMeusPedidos(data);
     } catch (error) {
-      alert("Erro ao buscar pedidos.");
+      toast.error("Erro ao buscar pedidos.");
     } finally {
       setBuscandoPedidos(false);
     }
@@ -194,7 +224,7 @@ export default function ClientMenu() {
         </div>
       </header>
 
-      {/* ABAS DE NAVEGAÇÃO (DESLUMBRANTES) */}
+      {/* ABAS DE NAVEGAÇÃO */}
       <div className="max-w-md mx-auto -mt-8 relative z-20 px-4">
         <div className="bg-white p-1.5 rounded-2xl shadow-xl border border-gray-100 flex gap-2">
           <button 
@@ -297,7 +327,7 @@ export default function ClientMenu() {
               <p className="text-orange-100 text-sm mt-1">Solicite um orçamento sem compromisso.</p>
             </div>
             
-            <form onSubmit={solicitarServico} className="p-6 space-y-4 bg-gray-50">
+            <form onSubmit={solicitarServico} className="p-6 space-y-4 bg-gray-50 overflow-y-auto max-h-[70vh]">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Data Desejada</label>
                 <div className="relative">
@@ -310,17 +340,29 @@ export default function ClientMenu() {
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Detalhes do Pedido</label>
                 <div className="relative">
                   <FileText size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                  <textarea required placeholder="Ex: Preciso de serviço de limpeza para um apartamento com 3 quartos..." value={detalhesServico} onChange={(e) => setDetalhesServico(e.target.value)} className="w-full border border-gray-200 pl-10 p-3 rounded-xl focus:ring-2 focus:ring-[#F97316] outline-none text-sm min-h-[100px] bg-white"></textarea>
+                  <textarea required placeholder="Ex: Preciso de serviço..." value={detalhesServico} onChange={(e) => setDetalhesServico(e.target.value)} className="w-full border border-gray-200 pl-10 p-3 rounded-xl focus:ring-2 focus:ring-[#F97316] outline-none text-sm min-h-[100px] bg-white"></textarea>
                 </div>
               </div>
 
-              {/* Dados confirmados */}
               <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
                 <p className="text-xs text-orange-800 font-medium">Enviaremos em nome de: <strong>{nomeCliente}</strong></p>
                 <p className="text-xs text-orange-800 font-medium">Celular de contato: <strong>{celularCliente}</strong></p>
               </div>
 
-              <button type="submit" disabled={enviando} className={`w-full text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-2 ${enviando ? 'bg-gray-400' : 'bg-[#1E293B] hover:bg-black active:scale-95'}`}>
+              {/* 👇 PROTEÇÃO DO CLOUDFLARE PARA OS SERVIÇOS */}
+              <div className="flex justify-center py-2">
+                <Turnstile
+                  siteKey="0x4AAAAAAC0yBAA2GO4d0UUy"
+                  onSuccess={(token) => setCaptchaTokenServico(token)}
+                  onError={() => toast.error('Erro de segurança. Tente atualizar a página.')}
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={enviando || !captchaTokenServico} 
+                className={`w-full text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-2 ${enviando || !captchaTokenServico ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#1E293B] hover:bg-black active:scale-95'}`}
+              >
                 {enviando ? 'Enviando...' : 'Enviar Solicitação'}
               </button>
             </form>
@@ -328,8 +370,7 @@ export default function ClientMenu() {
         </div>
       )}
 
-      {/* O SEU CÓDIGO DO CARRINHO (IS CART OPEN) CONTINUA EXATAMENTE O MESMO AQUI */}
-      {/* Para não ficar gigantesco, o carrinho e status continuam iguais ao que você tinha, apenas com as cores adaptadas ao novo design */}
+      {/* MODAL DO CARRINHO */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-[#0F172A]/80 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-left">
@@ -378,7 +419,20 @@ export default function ClientMenu() {
                     )}
                   </div>
 
-                  <button type="submit" disabled={enviando} className={`w-full text-white font-black py-4 rounded-xl shadow-lg transition-all mt-4 ${enviando ? 'bg-gray-400' : 'bg-[#E53E3E] hover:bg-red-700 active:scale-95'}`}>
+                  {/* 👇 PROTEÇÃO DO CLOUDFLARE PARA O CARRINHO */}
+                  <div className="flex justify-center py-2">
+                    <Turnstile
+                      siteKey="0x4AAAAAAC0yBAA2GO4d0UUy"
+                      onSuccess={(token) => setCaptchaTokenComida(token)}
+                      onError={() => toast.error('Erro de segurança. Tente atualizar a página.')}
+                    />
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    disabled={enviando || !captchaTokenComida} 
+                    className={`w-full text-white font-black py-4 rounded-xl shadow-lg transition-all mt-4 ${enviando || !captchaTokenComida ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#E53E3E] hover:bg-red-700 active:scale-95'}`}
+                  >
                     {enviando ? 'Processando...' : 'Finalizar Pedido'}
                   </button>
                 </form>
@@ -388,7 +442,7 @@ export default function ClientMenu() {
         </div>
       )}
 
-      {/* CÓDIGO DE STATUS TAMBÉM PERMANECE (Com leve ajuste de cor) */}
+      {/* MODAL DE STATUS DOS PEDIDOS */}
       {isStatusOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/80 backdrop-blur-sm p-4">
           <div className="bg-gray-50 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">

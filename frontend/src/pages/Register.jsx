@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { UserPlus, ArrowLeft, Phone, User, MapPin, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase'; 
+import toast from 'react-hot-toast';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -12,22 +14,45 @@ export default function Register() {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  const [captchaToken, setCaptchaToken] = useState(null);
 
   const fazerCadastro = async (e) => {
     e.preventDefault();
     setErro('');
-    setLoading(true);
+    
+    if (!captchaToken) {
+      setErro('Por favor, aguarde a verificação de segurança ou marque a caixa.');
+      return;
+    }
 
     if (!nome || !celular || !endereco || !senha) {
       setErro('Por favor, preencha todos os campos!');
-      setLoading(false);
       return;
     }
+
+    // 👇 VALIDAÇÃO INTELIGENTE DO NÚMERO DA GUINÉ-BISSAU
+    const celularLimpo = celular.replace(/\D/g, ''); // Remove espaços, letras e símbolos (como o +)
+    let celularFinal = celularLimpo;
+
+    // Se o cliente digitar 245 na frente (ex: 245 95 123 4567), limpamos o 245 para guardar só o número
+    if (celularLimpo.startsWith('245') && celularLimpo.length === 12) {
+      celularFinal = celularLimpo.substring(3);
+    }
+
+    // Verifica se sobrou exatamente 9 dígitos e se começa com o número 9
+    if (celularFinal.length !== 9 || !celularFinal.startsWith('9')) {
+      setErro('Insira um número válido da Guiné-Bissau com 9 dígitos (Ex: 95XXXXXXX).');
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const { error } = await supabase
         .from('clientes')
-        .insert([{ nome, celular, endereco, senha }]);
+        // 👇 Guardamos o número já limpo e validado no banco de dados
+        .insert([{ nome, celular: celularFinal, endereco, senha }]);
 
       if (error) {
         if (error.code === '23505') { 
@@ -37,10 +62,10 @@ export default function Register() {
         }
       } else {
         localStorage.setItem('clienteNome', nome);
-        localStorage.setItem('clienteCelular', celular);
+        localStorage.setItem('clienteCelular', celularFinal);
         localStorage.setItem('clienteEndereco', endereco);
         
-        alert('Cadastro realizado com sucesso! Bem-vindo ao Kanhen Alil.');
+        toast.success('Cadastro realizado com sucesso! Bem-vindo!');
         navigate('/cardapio'); 
       }
     } catch (err) {
@@ -53,10 +78,8 @@ export default function Register() {
   return (
     <div 
       className="min-h-screen flex items-center justify-center px-4 bg-cover bg-center bg-no-repeat relative"
-      // 👇 Alterado para a sua imagem
       style={{ backgroundImage: "url('/kanhenalil.jpeg')" }}
     >
-      {/* Película escura */}
       <div className="absolute inset-0 bg-black/75 backdrop-blur-[3px]"></div>
       
       <div className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-md w-full relative z-10 border border-white/20">
@@ -116,6 +139,7 @@ export default function Register() {
                 placeholder="95XXXXXXX" 
               />
             </div>
+            <p className="text-[10px] text-gray-400 mt-1 ml-1">Apenas números da Guiné-Bissau (9 dígitos)</p>
           </div>
 
           <div>
@@ -146,10 +170,18 @@ export default function Register() {
             </div>
           </div>
           
+          <div className="flex justify-center py-2">
+            <Turnstile
+              siteKey="0x4AAAAAAC0yBAA2GO4d0UUy"
+              onSuccess={(token) => setCaptchaToken(token)}
+              onError={() => setErro('Erro ao verificar segurança. Tente atualizar a página.')}
+            />
+          </div>
+          
           <button 
             type="submit" 
-            disabled={loading}
-            className={`w-full text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-2 ${loading ? 'bg-gray-400' : 'bg-[#F97316] hover:bg-orange-600 active:scale-95'}`}
+            disabled={loading || !captchaToken}
+            className={`w-full text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-2 ${loading || !captchaToken ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#F97316] hover:bg-orange-600 active:scale-95'}`}
           >
             {loading ? 'A processar...' : 'FINALIZAR CADASTRO'}
           </button>

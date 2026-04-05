@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Utensils, ShoppingBag, Edit, Trash, Clock, Check, Plus, X, LogOut, UploadCloud, MessageCircle, Briefcase, PhoneCall } from 'lucide-react';
+import { LayoutDashboard, Utensils, ShoppingBag, Edit, Trash, Clock, Check, Plus, X, LogOut, UploadCloud, MessageCircle, Briefcase, PhoneCall, Users, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,6 +8,7 @@ export default function AdminPanel() {
   const [abaAtiva, setAbaAtiva] = useState('pedidos');
   const [pedidos, setPedidos] = useState([]);
   const [produtos, setProdutos] = useState([]);
+  const [clientes, setClientes] = useState([]); // 👈 NOVO: Estado para clientes
   const [carregando, setCarregando] = useState(true);
 
   // Estados do Modal de Produtos
@@ -27,11 +28,8 @@ export default function AdminPanel() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'pedidos' },
         (payload) => {
-          // Toca um som de campainha de restaurante!
           const somCampainha = new Audio('https://actions.google.com/sounds/v1/alarms/ding_dong_bell.ogg');
           somCampainha.play().catch(e => console.log('O navegador bloqueou o som. Interaja com a página primeiro.'));
-
-          // Adiciona o pedido no topo da lista
           setPedidos((pedidosAtuais) => [payload.new, ...pedidosAtuais]);
         }
       )
@@ -45,13 +43,23 @@ export default function AdminPanel() {
   const buscarDados = async () => {
     setCarregando(true);
     try {
+      // Busca Pedidos
       const { data: dadosPedidos, error: erroPedidos } = await supabase.from('pedidos').select('*').order('id', { ascending: false });
       if (erroPedidos) throw erroPedidos;
       setPedidos(dadosPedidos);
 
+      // Busca Produtos
       const { data: dadosProdutos, error: erroProdutos } = await supabase.from('produtos').select('*').order('id', { ascending: true });
       if (erroProdutos) throw erroProdutos;
       setProdutos(dadosProdutos);
+
+      // 👈 NOVO: Busca Clientes
+      const { data: dadosClientes, error: erroClientes } = await supabase.from('clientes').select('*').order('id', { ascending: false });
+      if (erroClientes) throw erroClientes;
+      // Garante que clientes antigos que não tenham status fiquem como "Ativo" na tela
+      const clientesAjustados = dadosClientes.map(c => ({...c, status: c.status || 'Ativo'}));
+      setClientes(clientesAjustados);
+
     } catch (error) {
       console.error("Erro ao buscar dados:", error.message);
     } finally {
@@ -59,6 +67,9 @@ export default function AdminPanel() {
     }
   };
 
+  // ==========================================
+  // FUNÇÕES DE PEDIDOS
+  // ==========================================
   const atualizarStatusPedido = async (id, novoStatus) => {
     try {
       const { error } = await supabase.from('pedidos').update({ status: novoStatus }).eq('id', id);
@@ -69,7 +80,19 @@ export default function AdminPanel() {
     }
   };
 
-  // WhatsApp Inteligente (Serve para Comida e para Serviços)
+  // 👈 NOVO: Função para apagar pedido permanentemente
+  const apagarPedido = async (id) => {
+    if (!window.confirm("Tem certeza que deseja apagar este pedido permanentemente? Isso não pode ser desfeito.")) return;
+    try {
+      const { error } = await supabase.from('pedidos').delete().eq('id', id);
+      if (error) throw error;
+      setPedidos(pedidos.filter(p => p.id !== id));
+      alert("Pedido excluído com sucesso.");
+    } catch (error) {
+      alert("Erro ao excluir pedido.");
+    }
+  };
+
   const avisarClienteWhatsApp = (nomeCliente, telefoneCliente, itens, tipoAviso) => {
     const numeroLimpo = telefoneCliente.replace(/\D/g, ''); 
     const isServico = itens.includes('[SERVIÇO]');
@@ -90,6 +113,35 @@ export default function AdminPanel() {
 
     const linkWhatsapp = `https://wa.me/245${numeroLimpo}?text=${encodeURIComponent(mensagem)}`;
     window.open(linkWhatsapp, '_blank');
+  };
+
+  // ==========================================
+  // 👈 NOVO: FUNÇÕES DE CLIENTES
+  // ==========================================
+  const mudarStatusCliente = async (id, statusAtual) => {
+    const novoStatus = statusAtual === 'Desativado' ? 'Ativo' : 'Desativado';
+    const confirmacao = window.confirm(`Deseja realmente ${novoStatus === 'Desativado' ? 'BLOQUEAR' : 'DESBLOQUEAR'} este cliente?`);
+    if (!confirmacao) return;
+
+    try {
+      const { error } = await supabase.from('clientes').update({ status: novoStatus }).eq('id', id);
+      if (error) throw error;
+      setClientes(clientes.map(c => c.id === id ? { ...c, status: novoStatus } : c));
+    } catch (error) {
+      alert("Erro ao mudar status do cliente.");
+    }
+  };
+
+  const apagarCliente = async (id) => {
+    if (!window.confirm("⚠️ ATENÇÃO! Tem certeza que deseja excluir o cadastro deste cliente PERMANENTEMENTE?")) return;
+    try {
+      const { error } = await supabase.from('clientes').delete().eq('id', id);
+      if (error) throw error;
+      setClientes(clientes.filter(c => c.id !== id));
+      alert("Cliente excluído do sistema.");
+    } catch (error) {
+      alert("Erro ao apagar cliente. Verifique se ele possui pedidos vinculados.");
+    }
   };
 
   // ==========================================
@@ -190,7 +242,7 @@ export default function AdminPanel() {
   return (
     <div className="flex h-screen bg-gray-50 font-sans">
       
-      {/* MENU LATERAL ESCURO (NOVO DESIGN) */}
+      {/* MENU LATERAL ESCURO */}
       <aside className="w-64 bg-[#0F172A] text-white hidden md:flex flex-col shadow-2xl z-20">
         <div className="p-6 border-b border-gray-800 flex items-center gap-3">
           <div className="bg-[#F97316] p-2 rounded-lg"><LayoutDashboard size={24} className="text-white"/></div>
@@ -216,6 +268,14 @@ export default function AdminPanel() {
           >
             <Utensils size={20} /> Gerir Cardápio
           </button>
+
+          {/* 👈 NOVO: MENU DE CLIENTES */}
+          <button 
+            onClick={() => setAbaAtiva('clientes')} 
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all font-bold ${abaAtiva === 'clientes' ? 'bg-[#F97316] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+          >
+            <Users size={20} /> Base de Clientes
+          </button>
         </nav>
 
         <div className="p-4 border-t border-gray-800">
@@ -233,8 +293,8 @@ export default function AdminPanel() {
         <button onClick={() => setAbaAtiva('produtos')} className={`flex flex-col items-center p-2 rounded-lg ${abaAtiva === 'produtos' ? 'text-[#F97316]' : 'text-gray-400'}`}>
           <Utensils size={24} /><span className="text-xs font-bold mt-1">Cardápio</span>
         </button>
-        <button onClick={fazerLogout} className="flex flex-col items-center p-2 rounded-lg text-red-400 hover:text-red-300">
-          <LogOut size={24} /><span className="text-xs font-bold mt-1">Sair</span>
+        <button onClick={() => setAbaAtiva('clientes')} className={`flex flex-col items-center p-2 rounded-lg ${abaAtiva === 'clientes' ? 'text-[#F97316]' : 'text-gray-400'}`}>
+          <Users size={24} /><span className="text-xs font-bold mt-1">Clientes</span>
         </button>
       </nav>
 
@@ -244,7 +304,7 @@ export default function AdminPanel() {
         {/* CABEÇALHO */}
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <h1 className="text-2xl sm:text-3xl font-black text-[#1E293B]">
-            {abaAtiva === 'pedidos' ? 'Caixa de Entrada' : 'Gestão de Cardápio'}
+            {abaAtiva === 'pedidos' ? 'Caixa de Entrada' : abaAtiva === 'clientes' ? 'Gestão de Clientes' : 'Gestão de Cardápio'}
           </h1>
           <div className="flex gap-2 w-full sm:w-auto">
             {abaAtiva === 'produtos' && (
@@ -253,7 +313,7 @@ export default function AdminPanel() {
               </button>
             )}
             <button onClick={buscarDados} className="bg-white px-4 py-2 border border-gray-200 rounded-xl shadow-sm font-medium text-gray-600 hover:bg-gray-50 transition">
-              Atualizar
+              Atualizar Dados
             </button>
           </div>
         </header>
@@ -265,7 +325,7 @@ export default function AdminPanel() {
         ) : (
           <>
             {/* ========================================= */}
-            {/* TELA DE PEDIDOS (NOVO VISUAL)             */}
+            {/* TELA DE PEDIDOS */}
             {/* ========================================= */}
             {abaAtiva === 'pedidos' && (
               <div className="animate-fade-in max-w-6xl mx-auto">
@@ -288,9 +348,16 @@ export default function AdminPanel() {
                               <MessageCircle size={14} /> {pedido.celular_cliente}
                             </p>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-black shadow-sm ${pedido.status === 'Pendente' ? 'bg-yellow-400 text-yellow-900 animate-pulse' : pedido.status === 'Em Preparação' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'}`}>
-                            {pedido.status}
-                          </span>
+                          <div className="flex flex-col items-end gap-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-black shadow-sm ${pedido.status === 'Pendente' ? 'bg-yellow-400 text-yellow-900 animate-pulse' : pedido.status === 'Em Preparação' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'}`}>
+                              {pedido.status}
+                            </span>
+                            
+                            {/* 👈 NOVO: BOTÃO DE APAGAR PEDIDO */}
+                            <button onClick={() => apagarPedido(pedido.id)} className="text-red-400 hover:text-red-600 bg-red-50 p-1.5 rounded-lg transition" title="Apagar Pedido Permanente">
+                              <Trash size={16} />
+                            </button>
+                          </div>
                         </div>
 
                         <div className="p-5">
@@ -311,7 +378,6 @@ export default function AdminPanel() {
                             </div>
                           </div>
 
-                          {/* Se for Orange Money, exibe de forma destacada */}
                           {pedido.metodo_pagamento === 'Orange Money' && (
                             <div className={`mb-4 px-3 py-2 rounded-lg text-xs font-bold flex flex-col ${isServico ? 'bg-indigo-800 text-indigo-200' : 'bg-orange-50 text-orange-700 border border-orange-200'}`}>
                               <span>Pago via Orange Money</span>
@@ -319,7 +385,6 @@ export default function AdminPanel() {
                             </div>
                           )}
 
-                          {/* BOTÃO DO WHATSAPP */}
                           <button 
                             onClick={() => avisarClienteWhatsApp(pedido.nome_cliente, pedido.celular_cliente, pedido.itens_comprados, 'Contato')}
                             className="w-full mb-3 flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1DA851] text-white py-3 rounded-xl font-bold shadow-lg shadow-green-500/30 transition-all active:scale-95"
@@ -327,7 +392,6 @@ export default function AdminPanel() {
                             <PhoneCall size={18} /> Contactar Cliente
                           </button>
 
-                          {/* BOTÕES DE STATUS */}
                           <div className="grid grid-cols-2 gap-2">
                             {pedido.status === 'Pendente' && (
                               <>
@@ -361,7 +425,7 @@ export default function AdminPanel() {
             )}
 
             {/* ========================================= */}
-            {/* TELA DO CARDÁPIO (SEU CÓDIGO ORIGINAL)    */}
+            {/* TELA DO CARDÁPIO */}
             {/* ========================================= */}
             {abaAtiva === 'produtos' && (
               <div className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -400,13 +464,70 @@ export default function AdminPanel() {
                 </div>
               </div>
             )}
+
+            {/* ========================================= */}
+            {/* 👈 NOVO: TELA DE CLIENTES */}
+            {/* ========================================= */}
+            {abaAtiva === 'clientes' && (
+              <div className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-4 bg-orange-50 border-b border-orange-100 text-sm text-orange-800 font-medium">
+                  Controle o acesso dos seus clientes. Clientes desativados não poderão fazer login ou enviar pedidos.
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left whitespace-nowrap sm:whitespace-normal">
+                    <thead className="bg-gray-50 border-b border-gray-200 text-gray-600">
+                      <tr>
+                        <th className="p-4 font-semibold">Cliente</th>
+                        <th className="p-4 font-semibold">Contato</th>
+                        <th className="p-4 font-semibold">Endereço Principal</th>
+                        <th className="p-4 font-semibold hidden sm:table-cell">Acesso</th>
+                        <th className="p-4 font-semibold text-center">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {clientes.length === 0 ? (
+                        <tr><td colSpan="5" className="p-8 text-center text-gray-500">Nenhum cliente cadastrado ainda.</td></tr>
+                      ) : (
+                        clientes.map((cliente) => (
+                          <tr key={cliente.id} className={`border-b border-gray-100 transition ${cliente.status === 'Desativado' ? 'bg-red-50/50 opacity-80' : 'hover:bg-gray-50'}`}>
+                            <td className="p-4">
+                              <p className="font-bold text-gray-800">{cliente.nome}</p>
+                            </td>
+                            <td className="p-4 text-gray-600 font-medium">{cliente.celular}</td>
+                            <td className="p-4 text-gray-500 text-sm max-w-[200px] truncate" title={cliente.endereco}>{cliente.endereco}</td>
+                            <td className="p-4 hidden sm:table-cell">
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold ${cliente.status === 'Desativado' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-green-100 text-green-700 border border-green-200'}`}>
+                                {cliente.status}
+                              </span>
+                            </td>
+                            <td className="p-4 flex justify-center space-x-2">
+                              {/* Botão de Bloquear/Desbloquear */}
+                              <button 
+                                onClick={() => mudarStatusCliente(cliente.id, cliente.status)} 
+                                className={`p-2 rounded-lg transition ${cliente.status === 'Desativado' ? 'text-green-600 hover:bg-green-100' : 'text-orange-500 hover:bg-orange-100'}`} 
+                                title={cliente.status === 'Desativado' ? 'Ativar Cadastro' : 'Bloquear Cadastro'}
+                              >
+                                {cliente.status === 'Desativado' ? <UserCheck size={18} /> : <UserX size={18} />}
+                              </button>
+                              
+                              {/* Botão de Lixeira */}
+                              <button onClick={() => apagarCliente(cliente.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition" title="Excluir Permanentemente">
+                                <Trash size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </>
         )}
       </main>
 
-      {/* ========================================= */}
-      {/* MODAL DE ADICIONAR/EDITAR (SEU CÓDIGO)    */}
-      {/* ========================================= */}
+      {/* MODAL DO CARDÁPIO */}
       {isModalAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/80 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up">
@@ -418,7 +539,6 @@ export default function AdminPanel() {
               <input required type="text" placeholder="Nome do Prato" value={novoPrato.nome} onChange={e => setNovoPrato({...novoPrato, nome: e.target.value})} className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-[#F97316] outline-none"/>
               <input required type="number" placeholder="Preço (CFA)" value={novoPrato.preco} onChange={e => setNovoPrato({...novoPrato, preco: e.target.value})} className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-[#F97316] outline-none"/>
               
-              {/* CAMPO DE UPLOAD DE FOTO */}
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition cursor-pointer relative bg-gray-50/50">
                 <input 
                   type="file" 
